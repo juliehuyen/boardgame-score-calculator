@@ -93,7 +93,8 @@
   const state = {
     players: [],        // { id, name, total }
     log: [],            // pile des entrées pour "Annuler"
-    rules: { threshold: 100, endOp: ">=", winner: "min" }
+    rules: { threshold: 100, endOp: ">=", winner: "min" },
+    selectedTarget: null
   };
   const el = (id) => document.getElementById(id);
 
@@ -115,11 +116,20 @@
     render();
   }
 
+  // --- Feedback pour bouton Appliquer ---
+  el("applyPreset").onclick = ()=>{
+    applyPresetFromSelect();
+    const msg = el("applyMsg");
+    msg.textContent = "✔ Préréglage appliqué";
+    clearTimeout(msg._t);
+    msg._t = setTimeout(()=> msg.textContent = "", 1500);
+  };
 
   // --- Rendu ---
   function renderPlayers(){
     const ul = el("players");
     ul.innerHTML = "";
+
     state.players.forEach(p=>{
       const li = document.createElement("li");
       li.innerHTML = `<strong>${p.name}</strong><span class="pill">${p.total}</span>`;
@@ -130,9 +140,19 @@
       ul.appendChild(li);
     });
 
-    // options de cible
     const sel = el("targetPlayer");
+    const prev = state.selectedTarget ?? sel.value;
     sel.innerHTML = state.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
+
+    const exists = state.players.some(p => p.id === prev);
+    if (exists) {
+      sel.value = prev;
+    } else if (state.players.length) {
+      sel.value = state.players[0].id;
+    } else {
+      sel.innerHTML = "";
+    }
+    state.selectedTarget = sel.value || null;
   }
 
   function renderStatus(){
@@ -170,6 +190,15 @@
     }
   }
 
+  // --- Joueur suivant ---
+  function nextPlayerId(currentId){
+    const n = state.players.length;
+    if (!n) return null;
+    const idx = state.players.findIndex(p => p.id === currentId);
+    if (idx === -1) return state.players[0]?.id ?? null;
+    return state.players[(idx + 1) % n].id;
+  }
+
   // --- Actions ---
   el("addPlayer").onclick = ()=>{
     const name = el("playerName").value.trim();
@@ -182,14 +211,27 @@
 
   el("applyDelta").onclick = ()=>{
     if (!state.players.length) return;
-    const id = el("targetPlayer").value;
+    const currentId = el("targetPlayer").value || state.selectedTarget || state.players[0]?.id;
+    if (!currentId) return;
+
     const delta = parseInt(el("delta").value||"0", 10);
     if (!delta) return;
-    const p = state.players.find(p=>p.id===id);
+
+    const p = state.players.find(p=>p.id===currentId);
+    if (!p) return;
+
+    const nextId = nextPlayerId(currentId);
+
     p.total += delta;
-    state.log.push({ id, delta }); // pour Undo
+    state.log.push({ id: currentId, delta });
     el("delta").value = "";
     render();
+
+    const sel = el("targetPlayer");
+    if (nextId) {
+      sel.value = nextId;
+      state.selectedTarget = nextId;
+    }
   };
 
   el("undo").onclick = ()=>{
@@ -203,10 +245,10 @@
   el("reset").onclick = ()=>{
     state.players = [];
     state.log = [];
+    state.selectedTarget = null;
     render();
   };
 
-  // Synchronise les champs de règle vers l'état
   ["threshold","endOperator","winnerPolicy"].forEach(id=>{
     el(id).addEventListener("change", ()=>{
       state.rules.threshold = +el("threshold").value;
@@ -217,13 +259,10 @@
   });
   el("game").addEventListener("change", applyPresetFromSelect);
 
-  // Bouton "Appliquer" dans la section des règles
-  el("applyPreset").onclick = ()=>{
-  applyPresetFromSelect();
-  const msg = el("applyMsg");
-  clearTimeout(msg._t);
-  msg._t = setTimeout(()=> msg.textContent = "", 1500);
-};
+  // garder la sélection en phase si l’utilisateur change manuellement
+  el("targetPlayer").addEventListener("change", ()=>{
+    state.selectedTarget = el("targetPlayer").value || null;
+  });
 
   // Init
   applyPresetFromSelect();
