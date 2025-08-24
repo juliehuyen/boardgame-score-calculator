@@ -34,7 +34,7 @@
         <select id="game">
           <option value="custom">Personnalisé</option>
           <option value="skyjo">Skyjo (≥ 100, plus petit total gagne)</option>
-          <option value="flip7">Flip 7 (ex. ≥ 50, plus grand total gagne)</option>
+          <option value="flip7">Flip 7 (ex. ≥ 200, plus grand total gagne)</option>
           <option value="tarot">Tarot (seuil libre)</option>
         </select>
       </div>
@@ -60,7 +60,7 @@
       </div>
     </div>
     <div class="row">
-      <button id="applyPreset">Appliquer le préréglage du jeu</button>
+      <button id="applyPreset">Appliquer</button>
     </div>
   </div>
 
@@ -88,7 +88,7 @@
   </div>
 
 <script>
-  // --- État en mémoire (pas d’historique persistant) ---
+  // --- État en mémoire ---
   const state = {
     players: [],        // { id, name, total }
     log: [],            // pile des entrées pour "Annuler"
@@ -96,12 +96,11 @@
   };
   const el = (id) => document.getElementById(id);
 
-  // --- Préréglages par jeu (à adapter à tes habitudes) ---
-  // NB Skyjo classique: la "campagne" s'arrête quand quelqu'un atteint >=100, gagnant = plus petit total.
+  // --- Préréglages par jeu ---
   const presets = {
     skyjo:  { threshold: 100, endOp: ">=", winner: "min" },
-    flip7:  { threshold: 50,  endOp: ">=", winner: "max" }, // exemple, ajuste selon ta variante
-    tarot:  { threshold: 0,   endOp: ">=", winner: "max" }  // libre: tu peux saisir tes deltas calculés
+    flip7:  { threshold: 200,  endOp: ">=", winner: "max" },
+    tarot:  { threshold: 0,   endOp: ">=", winner: "max" }
   };
 
   function applyPresetFromSelect(){
