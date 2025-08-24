@@ -21,6 +21,12 @@
   .winner { background:#ecfdf5; border-color:#bbf7d0 !important; }
   .pill { padding:.25rem .6rem; border:1px solid var(--bd); border-radius:999px; font-size:.85rem; }
   .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; padding:.15rem .4rem; border:1px solid var(--bd); border-radius:6px; }
+
+  /* Feedback visuel pour le bouton Appliquer */
+  button.flash {
+    outline: 2px solid #22c55e; /* vert */
+    transition: outline 0.5s ease;
+  }
 </style>
 </head>
 <body>
@@ -61,7 +67,6 @@
     </div>
     <div class="row">
       <button id="applyPreset">Appliquer</button>
-      <span class="muted" id="applyMsg" style="margin-left:8px" aria-live="polite"></span>
     </div>
   </div>
 
@@ -116,13 +121,13 @@
     render();
   }
 
-  // --- Feedback pour bouton Appliquer ---
+  // --- Feedback visuel pour le bouton "Appliquer" (préréglage) ---
   el("applyPreset").onclick = ()=>{
     applyPresetFromSelect();
-    const msg = el("applyMsg");
-    msg.textContent = "✔ Préréglage appliqué";
-    clearTimeout(msg._t);
-    msg._t = setTimeout(()=> msg.textContent = "", 1500);
+    const btn = el("applyPreset");
+    btn.classList.add("flash");
+    clearTimeout(btn._t);
+    btn._t = setTimeout(()=> btn.classList.remove("flash"), 500);
   };
 
   // --- Rendu ---
