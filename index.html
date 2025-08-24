@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Calculatrice de Scores</title>
+<style>
+  :root { --r:12px; --pad:14px; --gap:12px; --bd:#e5e7eb; --muted:#6b7280; }
+  * { box-sizing:border-box; font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif; }
+  body { margin:0; padding:16px; max-width:760px; margin-inline:auto; }
+  h1 { font-size:1.5rem; margin:0 0 8px; }
+  .card { border:1px solid var(--bd); border-radius:var(--r); padding:var(--pad); margin: var(--gap) 0; box-shadow: 0 1px 0 rgba(0,0,0,.02); }
+  .grid { display:grid; gap:var(--gap); }
+  .row { display:flex; gap:var(--gap); align-items:center; }
+  input, select, button { padding:.7rem .9rem; border:1px solid var(--bd); border-radius:10px; outline:none; width:100%; }
+  button { background:#f9fafb; cursor:pointer; }
+  button.primary { background:#111827; color:white; border-color:#111827; }
+  button.danger { background:#fee2e2; border-color:#fecaca; }
+  .players li { display:flex; align-items:center; justify-content:space-between; padding:.6rem .8rem; border:1px solid var(--bd); border-radius:10px; }
+  .muted { color:var(--muted); font-size:.9rem; }
+  .winner { background:#ecfdf5; border-color:#bbf7d0 !important; }
+  .pill { padding:.25rem .6rem; border:1px solid var(--bd); border-radius:999px; font-size:.85rem; }
+  .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; padding:.15rem .4rem; border:1px solid var(--bd); border-radius:6px; }
+</style>
+</head>
+<body>
+  <h1>Calculatrice de scores</h1>
+  <p class="muted">Pas d’historique, juste la partie en cours. Définis les règles, ajoute les joueurs, et saisis les points ±.</p>
+
+  <!-- Règles de fin -->
+  <div class="card grid" id="rules">
+    <div class="row">
+      <div style="flex:1">
+        <label>Jeu</label>
+        <select id="game">
+          <option value="custom">Personnalisé</option>
+          <option value="skyjo">Skyjo (≥ 100, plus petit total gagne)</option>
+          <option value="flip7">Flip 7 (ex. ≥ 50, plus grand total gagne)</option>
+          <option value="tarot">Tarot (seuil libre)</option>
+        </select>
+      </div>
+      <div style="width:140px">
+        <label>Seuil</label>
+        <input id="threshold" type="number" value="100" />
+      </div>
+    </div>
+    <div class="row">
+      <div style="flex:1">
+        <label>Condition d’arrêt</label>
+        <select id="endOperator">
+          <option value=">=">Atteint ou dépasse (≥)</option>
+          <option value="<=">Descend ou atteint (≤)</option>
+        </select>
+      </div>
+      <div style="flex:1">
+        <label>Qui gagne ?</label>
+        <select id="winnerPolicy">
+          <option value="min">Total le plus petit</option>
+          <option value="max">Total le plus grand</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <button id="applyPreset">Appliquer le préréglage du jeu</button>
+      <span class="muted">Astuce : touche <span class="kbd">Enter</span> pour valider un score.</span>
+    </div>
+  </div>
+
+  <!-- Joueurs -->
+  <div class="card grid">
+    <div class="row">
+      <input id="playerName" placeholder="Nom du joueur" />
+      <button id="addPlayer" class="primary" style="width:180px">Ajouter</button>
+    </div>
+    <ul class="grid players" id="players"></ul>
+  </div>
+
+  <!-- Saisie -->
+  <div class="card grid">
+    <div class="row">
+      <select id="targetPlayer"></select>
+      <input id="delta" type="number" step="1" placeholder="+/- points" />
+      <button id="applyDelta" class="primary" style="width:160px">Appliquer</button>
+    </div>
+    <div class="row">
+      <button id="undo">Annuler dernière entrée</button>
+      <button id="reset" class="danger">Réinitialiser la partie</button>
+      <span class="muted" id="status"></span>
+    </div>
+  </div>
+
+<script>
+  // --- État en mémoire (pas d’historique persistant) ---
+  const state = {
+    players: [],        // { id, name, total }
+    log: [],            // pile des entrées pour "Annuler"
+    rules: { threshold: 100, endOp: ">=", winner: "min" }
+  };
+  const el = (id) => document.getElementById(id);
+
+  // --- Préréglages par jeu (à adapter à tes habitudes) ---
+  // NB Skyjo classique: la "campagne" s'arrête quand quelqu'un atteint >=100, gagnant = plus petit total.
+  const presets = {
+    skyjo:  { threshold: 100, endOp: ">=", winner: "min" },
+    flip7:  { threshold: 50,  endOp: ">=", winner: "max" }, // exemple, ajuste selon ta variante
+    tarot:  { threshold: 0,   endOp: ">=", winner: "max" }  // libre: tu peux saisir tes deltas calculés
+  };
+
+  function applyPresetFromSelect(){
+    const v = el("game").value;
+    const p = presets[v];
+    if (!p) return;
+    Object.assign(state.rules, p);
+    el("threshold").value = p.threshold;
+    el("endOperator").value = p.endOp;
+    el("winnerPolicy").value = p.winner;
+    render();
+  }
+
+  // --- Rendu ---
+  function renderPlayers(){
+    const ul = el("players");
+    ul.innerHTML = "";
+    state.players.forEach(p=>{
+      const li = document.createElement("li");
+      li.innerHTML = `<strong>${p.name}</strong><span class="pill">${p.total}</span>`;
+      if (isFinished()) {
+        const winners = winnersNow();
+        if (winners.some(w=>w.id===p.id)) li.classList.add("winner");
+      }
+      ul.appendChild(li);
+    });
+
+    // options de cible
+    const sel = el("targetPlayer");
+    sel.innerHTML = state.players.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
+  }
+
+  function renderStatus(){
+    const s = el("status");
+    if (!state.players.length) { s.textContent = ""; return; }
+    if (isFinished()){
+      const winners = winnersNow();
+      const names = winners.map(w=>w.name).join(", ");
+      s.textContent = `Fin de partie — gagnant: ${names}`;
+    } else {
+      s.textContent = "";
+    }
+  }
+
+  function render(){ renderPlayers(); renderStatus(); }
+
+  // --- Règles d’arrêt & gagnant ---
+  function isFinished(){
+    const th = +state.rules.threshold;
+    const op = state.rules.endOp;
+    if (!state.players.length) return false;
+    if (op === ">=") return state.players.some(p => p.total >= th);
+    if (op === "<=") return state.players.some(p => p.total <= th);
+    return false;
+  }
+
+  function winnersNow(){
+    if (!isFinished()) return [];
+    if (state.rules.winner === "min"){
+      const min = Math.min(...state.players.map(p=>p.total));
+      return state.players.filter(p=>p.total === min);
+    } else {
+      const max = Math.max(...state.players.map(p=>p.total));
+      return state.players.filter(p=>p.total === max);
+    }
+  }
+
+  // --- Actions ---
+  el("addPlayer").onclick = ()=>{
+    const name = el("playerName").value.trim();
+    if (!name) return;
+    const id = crypto.getRandomValues(new Uint32Array(1))[0].toString(16);
+    state.players.push({ id, name, total: 0 });
+    el("playerName").value = "";
+    render();
+  };
+
+  el("applyDelta").onclick = ()=>{
+    if (!state.players.length) return;
+    const id = el("targetPlayer").value;
+    const delta = parseInt(el("delta").value||"0", 10);
+    if (!delta) return;
+    const p = state.players.find(p=>p.id===id);
+    p.total += delta;
+    state.log.push({ id, delta }); // pour Undo
+    el("delta").value = "";
+    render();
+  };
+
+  el("undo").onclick = ()=>{
+    const last = state.log.pop();
+    if (!last) return;
+    const p = state.players.find(p=>p.id===last.id);
+    if (p) p.total -= last.delta;
+    render();
+  };
+
+  el("reset").onclick = ()=>{
+    state.players = [];
+    state.log = [];
+    render();
+  };
+
+  // Synchronise les champs de règle vers l'état
+  ["threshold","endOperator","winnerPolicy"].forEach(id=>{
+    el(id).addEventListener("change", ()=>{
+      state.rules.threshold = +el("threshold").value;
+      state.rules.endOp = el("endOperator").value;
+      state.rules.winner = el("winnerPolicy").value;
+      render();
+    });
+  });
+  el("applyPreset").onclick = applyPresetFromSelect;
+  el("game").addEventListener("change", applyPresetFromSelect);
+
+  // Init
+  applyPresetFromSelect();
+</script>
+</body>
+</html>
