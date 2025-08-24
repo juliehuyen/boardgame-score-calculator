@@ -61,6 +61,7 @@
     </div>
     <div class="row">
       <button id="applyPreset">Appliquer</button>
+      <span class="muted" id="applyMsg" style="margin-left:8px" aria-live="polite"></span>
     </div>
   </div>
 
@@ -113,6 +114,7 @@
     el("winnerPolicy").value = p.winner;
     render();
   }
+
 
   // --- Rendu ---
   function renderPlayers(){
@@ -213,8 +215,15 @@
       render();
     });
   });
-  el("applyPreset").onclick = applyPresetFromSelect;
   el("game").addEventListener("change", applyPresetFromSelect);
+
+  // Bouton "Appliquer" dans la section des règles
+  el("applyPreset").onclick = ()=>{
+  applyPresetFromSelect();
+  const msg = el("applyMsg");
+  clearTimeout(msg._t);
+  msg._t = setTimeout(()=> msg.textContent = "", 1500);
+};
 
   // Init
   applyPresetFromSelect();
