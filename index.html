@@ -33,9 +33,9 @@
         <label>Jeu</label>
         <select id="game">
           <option value="custom">Personnalisé</option>
-          <option value="skyjo">Skyjo (≥ 100, plus petit total gagne)</option>
-          <option value="flip7">Flip 7 (ex. ≥ 200, plus grand total gagne)</option>
-          <option value="tarot">Tarot (seuil libre)</option>
+          <option value="skyjo">Skyjo</option>
+          <option value="flip7">Flip 7</option>
+          <option value="tarot">Tarot</option>
         </select>
       </div>
       <div style="width:140px">
@@ -100,7 +100,7 @@
   const presets = {
     skyjo:  { threshold: 100, endOp: ">=", winner: "min" },
     flip7:  { threshold: 200,  endOp: ">=", winner: "max" },
-    tarot:  { threshold: 0,   endOp: ">=", winner: "max" }
+    tarot:  { threshold: 100,   endOp: ">=", winner: "max" }
   };
 
   function applyPresetFromSelect(){
