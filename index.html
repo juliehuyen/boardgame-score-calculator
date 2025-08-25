@@ -89,6 +89,7 @@
     <div class="row">
       <select id="targetPlayer"></select>
       <input id="delta" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="points" />
+      <button type="button" id="toggleSign">±</button>
       <button id="applyDelta" class="primary" style="width:160px">Appliquer</button>
     </div>
     <div class="row">
@@ -273,6 +274,16 @@
   el("targetPlayer").addEventListener("change", ()=>{
     state.selectedTarget = el("targetPlayer").value || null;
   });
+
+  el("toggleSign").onclick = () => {
+  const input = el("delta");
+  if (input.value.startsWith("-")) {
+    input.value = input.value.slice(1); // enlève le signe
+  } else if (input.value.trim() !== "") {
+    input.value = "-" + input.value; // ajoute le signe
+  }
+};
+
 
   // Init
   applyPresetFromSelect();
