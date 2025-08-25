@@ -51,7 +51,7 @@
       </div>
       <div style="width:140px">
         <label>Seuil</label>
-        <input id="threshold" type="number" value="100" />
+        <input id="threshold" type="text" inputmode="numeric" pattern="[0-9]*" />
       </div>
     </div>
     <div class="row">
@@ -88,7 +88,7 @@
   <div class="card grid">
     <div class="row">
       <select id="targetPlayer"></select>
-      <input id="delta" type="number" step="1" placeholder="+/- points" />
+      <input id="delta" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="points" />
       <button id="applyDelta" class="primary" style="width:160px">Appliquer</button>
     </div>
     <div class="row">
